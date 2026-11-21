@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Holy Quran – Noor</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tabs button { flex: 1; padding: 8px; border-radius: 10px; border: 1.5px solid var(--green); background: #fff; color: var(--green); font-weight: 600; cursor: pointer; }
+  .tabs button.on { background: var(--green); color: #fff; }
+  .player { position: sticky; top: 62px; z-index: 5; background: rgba(250,246,236,.96); backdrop-filter: blur(6px); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; box-shadow: 0 4px 14px rgba(15,92,74,.08); }
+  .player select { padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--line); font-family: inherit; background: #fff; flex: 1; min-width: 220px; }
+  .player .btn { padding: 9px 20px; font-size: .9rem; }
+  .player .now { font-size: .85rem; color: var(--muted); width: 100%; }
+  .play { border: none; background: #e3f1ec; color: var(--green); width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: .9rem; }
+  .play:hover { background: var(--green); color: #fff; }
+  .ayah.playing { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,162,75,.35); }
+  .surah-break { text-align: center; font-family: 'Amiri Quran', serif; font-size: 1.8rem; color: var(--green); margin: 30px 0 6px; }
+  .surah-break small { display: block; font-family: 'Inter', sans-serif; font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<nav class="nav"><div class="nav-inner">
+  <a class="brand" href="index.html">Noor<span>.</span></a>
+  <div>
+    <a class="link" href="index.html">Home</a>
+    <a class="link" href="library.html">Hadith &amp; Sunnah</a>
+    <a class="link active" href="quran.html">Quran</a>
+  </div>
+</div></nav>
+
+<div class="reader">
+  <aside class="side">
+    <div class="tabs"><button id="tSurah" class="on">Surah</button><button id="tJuz">Juz</button></div>
+    <input id="find" placeholder="Search surah (name or number)…">
+    <div id="suras"><p class="status">Loading…</p></div>
+  </aside>
+  <main class="content" id="main">
+    <p class="status">Select a surah to begin reading.</p>
+  </main>
+</div>
+
+<script>
+/*
+  Text and audio source: api.alquran.cloud
+  Arabic: quran-uthmani | English: en.sahih (Sahih International) | Audio: selected reciter edition
+  All content is loaded directly from the source, so there are no transcription errors.
+*/
+const API = 'https://api.alquran.cloud/v1';
+const BISM = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
+const RECITERS = [
+  ['ar.abdurrahmaansudais', 'Sheikh Abdur-Rahman As-Sudais (Imam, Makkah)'],
+  ['ar.saoodshuraym', 'Sheikh Saud Ash-Shuraim (Imam, Makkah)'],
+  ['ar.mahermuaiqly', 'Sheikh Maher Al-Muaiqly (Imam, Makkah)'],
+  ['ar.alafasy', 'Sheikh Mishary Alafasy'],
+  ['ar.husary', 'Sheikh Mahmoud Khalil Al-Husary'],
+  ['ar.minshawi', 'Sheikh Mohamed Siddiq Al-Minshawi'],
+  ['ar.abdulbasitmurattal', 'Sheikh Abdul Basit Abdus-Samad']
+];
+
+let suras = [], mode = 'surah', current = 1, arSize = 2.1;
+let reciter = localStorage.getItem('noor-reciter') || RECITERS[0][0];
+let ayahEls = [], audioUrls = [], idx = -1, playing = false;
+const audio = new Audio();
+const sideEl = document.getElementById('suras');
+const main = document.getElementById('main');
+
+async function getData(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  if (j.code !== 200) throw new Error('API error');
+  return j.data;
+}
+
+/* ---------- sidebar ---------- */
+function renderList() {
+  const term = document.getElementById('find').value.trim().toLowerCase();
+  sideEl.innerHTML = '';
+  if (mode === 'juz') {
+    for (let j = 1; j <= 30; j++) {
+      if (term && String(j) !== term && !('juz ' + j).includes(term)) continue;
+      const d = document.createElement('div');
+      d.className = 'sura' + (j === current ? ' on' : '');
+      d.innerHTML = '<div class="n"><b></b></div><div><div class="en"></div></div>';
+      d.querySelector('b').textContent = j;
+      d.querySelector('.en').textContent = 'Juz ' + j;
+      d.onclick = () => open(j);
+      sideEl.appendChild(d);
+    }
+    return;
+  }
+  suras.filter(s => !term || String(s.number) === term || s.englishName.toLowerCase().includes(term) || s.englishNameTranslation.toLowerCase().includes(term))
+    .forEach(s => {
+      const d = document.createElement('div');
+      d.className = 'sura' + (s.number === current ? ' on' : '');
+      d.innerHTML = '<div class="n"><b></b></div><div><div class="en"></div><div class="meta"></div></div><div class="arn"></div>';
+      d.querySelector('b').textContent = s.number;
+      d.querySelector('.en').textContent = s.englishName;
+      d.querySelector('.meta').textContent = s.englishNameTranslation + ' · ' + s.numberOfAyahs + ' verses';
+      d.querySelector('.arn').textContent = s.name.replace('سُورَةُ ', '').replace('سورة ', '');
+      d.onclick = () => open(s.number);
+      sideEl.appendChild(d);
+    });
+}
+document.getElementById('find').addEventListener('input', renderList);
+function setMode(m) {
+  mode = m; current = 1;
+  document.getElementById('tSurah').classList.toggle('on', m === 'surah');
+  document.getElementById('tJuz').classList.toggle('on', m === 'juz');
+  document.getElementById('find').placeholder = m === 'juz' ? 'Search juz (1–30)…' : 'Search surah (name or number)…';
+  renderList(); open(1);
+}
+document.getElementById('tSurah').onclick = () => setMode('surah');
+document.getElementById('tJuz').onclick = () => setMode('juz');
+
+/* ---------- loading ---------- */
+async function loadText(kind, n) {
+  const key = 'noor-text-' + kind + '-' + n;
+  try { const c = JSON.parse(localStorage.getItem(key)); if (c) return c; } catch (_) {}
+  const base = '/' + kind + '/' + n + '/';
+  const [ar, en] = await Promise.all([getData(base + 'quran-uthmani'), getData(base + 'en.sahih')]);
+  const out = { ar: ar.ayahs, en: en.ayahs };
+  try { localStorage.setItem(key, JSON.stringify(out)); } catch (_) {}
+  return out;
+}
+async function loadAudio(kind, n) {
+  const d = await getData('/' + kind + '/' + n + '/' + reciter);
+  return d.ayahs.map(a => a.audio);
+}
+
+async function open(n) {
+  stop();
+  current = n;
+  renderList();
+  main.innerHTML = '<p class="status">Loading…</p>';
+  window.scrollTo({ top: 0 });
+  const kind = mode;
+  try {
+    const text = await loadText(kind, n);
+    draw(kind, n, text);
+    loadAudioForView();
+  } catch (e) {
+    main.innerHTML = '<p class="status err">Could not load. Check your internet connection and try again.</p>';
+  }
+}
+
+async function loadAudioForView() {
+  audioUrls = [];
+  setNow('Loading recitation…');
+  try {
+    audioUrls = await loadAudio(mode, current);
+    setNow('Ready. Press Play all or the ▶ on any verse.');
+  } catch (e) {
+    setNow('This reciter\u2019s audio could not be loaded. Try another reciter.');
+  }
+}
+
+/* ---------- drawing ---------- */
+function draw(kind, n, text) {
+  main.innerHTML = '';
+  ayahEls = [];
+  const head = document.createElement('div'); head.className = 'sura-head';
+  head.innerHTML = '<div class="arname"></div><div class="enname"></div><div class="info"></div>';
+  if (kind === 'surah') {
+    const m = suras.find(s => s.number === n);
+    head.querySelector('.arname').textContent = m.name;
+    head.querySelector('.enname').textContent = m.englishName + ' – ' + m.englishNameTranslation;
+    head.querySelector('.info').textContent = m.revelationType + ' · ' + m.numberOfAyahs + ' verses';
+  } else {
+    head.querySelector('.arname').textContent = 'الجزء ' + n;
+    head.querySelector('.enname').textContent = 'Juz ' + n;
+    head.querySelector('.info').textContent = text.ar.length + ' verses';
+  }
+  main.appendChild(head);
+
+  // player bar
+  const bar = document.createElement('div'); bar.className = 'player';
+  const sel = document.createElement('select');
+  RECITERS.forEach(r => { const o = document.createElement('option'); o.value = r[0]; o.textContent = r[1]; if (r[0] === reciter) o.selected = true; sel.appendChild(o); });
+  sel.onchange = () => { stop(); reciter = sel.value; try { localStorage.setItem('noor-reciter', reciter); } catch (_) {} loadAudioForView(); };
+  const pb = document.createElement('button'); pb.className = 'btn dark'; pb.textContent = '▶ Play all'; pb.id = 'pall';
+  pb.onclick = () => { if (playing) stop(); else playFrom(0); };
+  const now = document.createElement('div'); now.className = 'now'; now.id = 'now';
+  bar.append(sel, pb, now); main.appendChild(bar);
+
+  const fc = document.createElement('div'); fc.className = 'fontctl';
+  fc.innerHTML = '<button>A−</button><button>A+</button>';
+  fc.children[0].onclick = () => setSize(-0.15); fc.children[1].onclick = () => setSize(0.15);
+  main.appendChild(fc);
+
+  if (kind === 'surah' && n !== 1 && n !== 9) {
+    const b = document.createElement('div'); b.className = 'bism'; b.textContent = BISM; main.appendChild(b);
+  }
+
+  text.ar.forEach((a, i) => {
+    const sNum = kind === 'surah' ? n : a.surah.number;
+    // Divider between surahs when viewing a juz
+    if (kind === 'juz' && a.numberInSurah === 1) {
+      const br = document.createElement('div'); br.className = 'surah-break';
+      br.innerHTML = '<span></span><small></small>';
+      br.querySelector('span').textContent = a.surah.name;
+      br.querySelector('small').textContent = a.surah.englishName;
+      main.appendChild(br);
+      if (sNum !== 1 && sNum !== 9) { const b = document.createElement('div'); b.className = 'bism'; b.textContent = BISM; main.appendChild(b); }
+    }
+    let t = a.text;
+    // The API prepends the Bismillah to verse 1 of every surah except 1 and 9; shown separately above.
+    if (sNum !== 1 && sNum !== 9 && a.numberInSurah === 1) t = t.split(' ').slice(4).join(' ');
+
+    const card = document.createElement('div'); card.className = 'ayah';
+    card.innerHTML = '<div class="top"><span class="badge"></span><button class="play" title="Play this verse">▶</button></div><div class="arabic"></div><div class="english"></div>';
+    card.querySelector('.badge').textContent = sNum + ':' + a.numberInSurah;
+    card.querySelector('.play').onclick = () => playFrom(i);
+    const arEl = card.querySelector('.arabic'); arEl.textContent = t; arEl.style.fontSize = arSize + 'rem';
+    card.querySelector('.english').textContent = text.en[i].text;
+    main.appendChild(card); ayahEls.push(card);
+  });
+
+  const nav = document.createElement('div'); nav.className = 'navrow';
+  const max = kind === 'surah' ? 114 : 30;
+  const prev = document.createElement('button'); prev.className = 'btn dark'; prev.textContent = '← Previous';
+  const next = document.createElement('button'); next.className = 'btn dark'; next.textContent = 'Next →';
+  prev.onclick = () => open(n - 1); next.onclick = () => open(n + 1);
+  if (n === 1) prev.style.visibility = 'hidden';
+  if (n === max) next.style.visibility = 'hidden';
+  nav.append(prev, next); main.appendChild(nav);
+}
+
+function setSize(d) {
+  arSize = Math.min(3.4, Math.max(1.3, arSize + d));
+  document.querySelectorAll('.ayah .arabic').forEach(e => e.style.fontSize = arSize + 'rem');
+}
+
+/* ---------- audio ---------- */
+function setNow(t) { const e = document.getElementById('now'); if (e) e.textContent = t; }
+function playFrom(i) {
+  if (!audioUrls.length || !audioUrls[i]) { setNow('Audio is not ready yet. Please wait a moment or choose another reciter.'); return; }
+  idx = i; playing = true;
+  audio.src = audioUrls[i];
+  audio.play().catch(() => setNow('Could not play audio. Try another reciter.'));
+  ayahEls.forEach(e => e.classList.remove('playing'));
+  const el = ayahEls[i]; el.classList.add('playing');
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const b = document.getElementById('pall'); if (b) b.textContent = '■ Stop';
+  setNow('Playing verse ' + (i + 1) + ' of ' + ayahEls.length);
+}
+function stop() {
+  audio.pause(); playing = false; idx = -1;
+  ayahEls.forEach(e => e.classList.remove('playing'));
+  const b = document.getElementById('pall'); if (b) b.textContent = '▶ Play all';
+}
+audio.onended = () => {
+  if (playing && idx + 1 < ayahEls.length) playFrom(idx + 1);
+  else { stop(); setNow('Finished.'); }
+};
+audio.onerror = () => { if (playing) { stop(); setNow('This audio could not be loaded. Try another reciter.'); } };
+
+/* ---------- start ---------- */
+(async function init() {
+  try {
+    suras = await getData('/surah');
+    renderList();
+    open(Math.min(Math.max(parseInt(location.hash.slice(1)) || 1, 1), 114));
+  } catch (e) {
+    sideEl.innerHTML = '<p class="status err">Could not load. Check your internet connection and refresh.</p>';
+  }
+})();
+</script>
+</body>
+</html>

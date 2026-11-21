@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hadith &amp; Sunnah – Noor</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .cats { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 26px; }
+  .chip.small { padding: 6px 14px; font-size: .82rem; }
+  .group { margin-bottom: 40px; }
+  .group-head { display: flex; align-items: baseline; gap: 12px; border-bottom: 2px solid var(--gold); padding-bottom: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .group-head h3 { font-family: 'Playfair Display', serif; font-size: 1.5rem; color: var(--green-dark); }
+  .group-head .d { color: var(--muted); font-size: .9rem; }
+  .group-head .count { margin-left: auto; background: var(--green); color: #fff; border-radius: 999px; padding: 2px 12px; font-size: .78rem; font-weight: 600; }
+  .total { text-align: center; color: var(--muted); font-size: .9rem; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<nav class="nav"><div class="nav-inner">
+  <a class="brand" href="index.html">Noor<span>.</span></a>
+  <div>
+    <a class="link" href="index.html">Home</a>
+    <a class="link active" href="library.html">Hadith &amp; Sunnah</a>
+    <a class="link" href="quran.html">Quran</a>
+  </div>
+</div></nav>
+
+<section class="wrap">
+  <h2 class="title">Hadith &amp; Sunnah</h2>
+  <div class="divider"></div>
+  <p class="sub">Sayings and practices of the Prophet Muhammad ﷺ, organized by topic.</p>
+
+  <div class="toolbar" id="types">
+    <button class="chip on" data-f="all">All</button>
+    <button class="chip" data-f="hadith">Hadith</button>
+    <button class="chip" data-f="sunnah">Sunnah</button>
+  </div>
+  <div class="cats" id="cats"></div>
+  <div class="toolbar"><input class="search" id="q" placeholder="Search by word or source…"></div>
+  <p class="total" id="total"></p>
+
+  <div id="list"></div>
+  <p class="note">English texts are translations/paraphrases. Please check the cited collection and consult a scholar for rulings.</p>
+</section>
+
+<footer>Noor – a simple place to learn.</footer>
+
+<script src="data.js"></script>
+<script>
+let typeFilter = 'all', catFilter = 'all';
+const list = document.getElementById('list');
+const q = document.getElementById('q');
+const catsEl = document.getElementById('cats');
+
+function buildCats() {
+  const all = document.createElement('button');
+  all.className = 'chip small on'; all.textContent = 'All topics'; all.dataset.c = 'all';
+  catsEl.appendChild(all);
+  CATEGORIES.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'chip small'; b.textContent = c.title; b.dataset.c = c.id;
+    catsEl.appendChild(b);
+  });
+  catsEl.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    catsEl.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+    b.classList.add('on'); catFilter = b.dataset.c; render();
+  });
+}
+
+function render() {
+  const term = q.value.trim().toLowerCase();
+  list.innerHTML = '';
+  let shown = 0;
+  CATEGORIES.forEach(c => {
+    if (catFilter !== 'all' && catFilter !== c.id) return;
+    const rows = ENTRIES.filter(e => e.cat === c.id &&
+      (typeFilter === 'all' || e.type === typeFilter) &&
+      (!term || e.text.toLowerCase().includes(term) || e.ref.toLowerCase().includes(term)));
+    if (!rows.length) return;
+    shown += rows.length;
+    const g = document.createElement('div'); g.className = 'group';
+    const h = document.createElement('div'); h.className = 'group-head';
+    const t = document.createElement('h3'); t.textContent = c.title;
+    const d = document.createElement('span'); d.className = 'd'; d.textContent = c.desc;
+    const n = document.createElement('span'); n.className = 'count'; n.textContent = rows.length;
+    h.append(t, d, n); g.appendChild(h);
+    const l = document.createElement('div'); l.className = 'list';
+    rows.forEach(e => {
+      const it = document.createElement('div'); it.className = 'item';
+      const tag = document.createElement('span'); tag.className = 'tag ' + e.type; tag.textContent = e.type;
+      const p = document.createElement('p'); p.textContent = e.text;
+      const r = document.createElement('div'); r.className = 'ref'; r.textContent = e.ref;
+      it.append(tag, p, r); l.appendChild(it);
+    });
+    g.appendChild(l); list.appendChild(g);
+  });
+  if (!shown) list.innerHTML = '<p class="status">Nothing found.</p>';
+  document.getElementById('total').textContent = shown + ' of ' + ENTRIES.length + ' entries shown';
+}
+
+document.querySelectorAll('#types .chip').forEach(c => c.onclick = () => {
+  document.querySelectorAll('#types .chip').forEach(x => x.classList.remove('on'));
+  c.classList.add('on'); typeFilter = c.dataset.f; render();
+});
+q.addEventListener('input', render);
+buildCats(); render();
+</script>
+</body>
+</html>

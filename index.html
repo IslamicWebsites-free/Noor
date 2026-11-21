@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Noor – Learn About Islam</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="nav"><div class="nav-inner">
+  <a class="brand" href="index.html">Noor<span>.</span></a>
+  <div>
+    <a class="link active" href="index.html">Home</a>
+    <a class="link" href="library.html">Hadith &amp; Sunnah</a>
+    <a class="link" href="quran.html">Quran</a>
+  </div>
+</div></nav>
+
+<header class="hero">
+  <div class="bismillah">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div>
+  <h1>Light for the Heart, Guidance for Life</h1>
+  <p>Explore the Quran, the sayings of the Prophet Muhammad ﷺ, and the beautiful practices of the Sunnah, all in one calm, simple place.</p>
+  <a class="btn" href="quran.html">Read the Quran</a>
+  <a class="btn ghost" href="library.html">Hadith &amp; Sunnah</a>
+</header>
+
+<section class="wrap">
+  <h2 class="title">Today's Reminder</h2>
+  <div class="divider"></div>
+  <p class="sub">A random hadith or sunnah every time you click.</p>
+  <div class="feature">
+    <span class="tag" id="rtag"></span>
+    <p class="quote" id="rtext"></p>
+    <p class="ref" id="rref"></p>
+    <br>
+    <button class="btn dark" onclick="randomEntry()">Show another</button>
+  </div>
+</section>
+
+<section class="wrap" style="padding-top:0">
+  <h2 class="title">The Five Pillars of Islam</h2>
+  <div class="divider"></div>
+  <p class="sub">The foundation of a Muslim's faith and practice.</p>
+  <div class="grid">
+    <div class="card"><div class="pillar-num">1</div><h3>Shahada</h3><p>Declaring that there is no god but Allah and that Muhammad ﷺ is His Messenger.</p></div>
+    <div class="card"><div class="pillar-num">2</div><h3>Salah</h3><p>Performing the five daily prayers, connecting the believer with Allah.</p></div>
+    <div class="card"><div class="pillar-num">3</div><h3>Zakat</h3><p>Giving a set portion of wealth to those in need, purifying one's earnings.</p></div>
+    <div class="card"><div class="pillar-num">4</div><h3>Sawm</h3><p>Fasting from dawn to sunset during the month of Ramadan.</p></div>
+    <div class="card"><div class="pillar-num">5</div><h3>Hajj</h3><p>Pilgrimage to Makkah once in a lifetime for those who are able.</p></div>
+  </div>
+</section>
+
+<section class="wrap" style="padding-top:0">
+  <h2 class="title">Explore</h2>
+  <div class="divider"></div>
+  <div class="three">
+    <div class="card"><h3>The Holy Quran</h3><p>All 114 surahs in Arabic with an English translation beneath every verse.</p><a href="quran.html">Open the Quran →</a></div>
+    <div class="card"><h3>Hadith Collection</h3><p>Authentic sayings of the Prophet ﷺ with their sources in Bukhari, Muslim and more.</p><a href="library.html">Browse hadith →</a></div>
+    <div class="card"><h3>Sunnah Practices</h3><p>Everyday habits of the Prophet ﷺ, from greeting others to the way we eat and sleep.</p><a href="library.html">Browse sunnah →</a></div>
+  </div>
+</section>
+
+<footer>Made with sincerity. Please verify hadith wording and rulings with qualified scholars and the original collections.</footer>
+
+<script src="data.js"></script>
+<script>
+function randomEntry() {
+  const e = ENTRIES[Math.floor(Math.random() * ENTRIES.length)];
+  const tag = document.getElementById('rtag');
+  tag.textContent = e.type; tag.className = 'tag ' + e.type;
+  document.getElementById('rtext').textContent = '\u201C' + e.text + '\u201D';
+  document.getElementById('rref').textContent = e.ref;
+}
+randomEntry();
+</script>
+</body>
+</html>
